@@ -194,14 +194,14 @@ struct
       (match Env.lookup e x with
       | Addr l -> l
       | Proc _ -> raise (Error "TypeError : not addr")) 
-    with Env.Not_bound -> raise (Error "Unbound")
+    with Env.Not_bound -> raise (Error "Unbound loc")
 
   let lookup_env_proc e f =
     try
       (match Env.lookup e f with
       | Addr _ -> raise (Error "TypeError : not proc") 
       | Proc (id_list, exp, env) -> (id_list, exp, env))
-    with Env.Not_bound -> raise (Error "Unbound")
+    with Env.Not_bound -> raise (Error "Unbound proc")
 
   let rec eval mem env e =
     match e with
