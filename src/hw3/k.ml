@@ -222,6 +222,22 @@ struct
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
       (v, Mem.store mem' l v)
+    | NUM n -> (Num n, mem)
+    | TRUE -> (Bool true, mem)
+    | FALSE -> (Bool false, mem)
+    | VAR id ->
+      let loc = lookup_env_loc env id in
+      let v = Mem.load mem loc in
+      (v, mem)
+    | SEQ (e1, e2) -> 
+      let (_, mem') = eval mem env e1 in
+      let (v, mem'') = eval mem' env e2 in
+      (v, mem'')
+    | ADD (left, right) ->
+      let (l, _) = eval mem env left in
+      let (r, _) = eval mem env right in
+      let result = value_int l + value_int r in
+      (Num result, mem)
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
 
   let run (mem, env, pgm) = 
