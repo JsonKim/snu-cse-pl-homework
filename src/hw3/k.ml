@@ -218,6 +218,8 @@ struct
       let (v, mem') = eval mem env e1 in
       let (l, mem'') = Mem.alloc mem' in
       eval (Mem.store mem'' l v) (Env.bind env x (Addr l)) e2
+    | LETF (id, args, body, exp) -> 
+      eval mem (Env.bind env id (Proc(args, body, env))) exp
     | ASSIGN (x, e) ->
       let (v, mem') = eval mem env e in
       let l = lookup_env_loc env x in
@@ -234,11 +236,72 @@ struct
       let (v, mem'') = eval mem' env e2 in
       (v, mem'')
     | ADD (left, right) ->
-      let (l, _) = eval mem env left in
-      let (r, _) = eval mem env right in
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
       let result = value_int l + value_int r in
-      (Num result, mem)
+      (Num result, mem'')
+    | MUL (left, right) ->
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
+      let result = value_int l * value_int r in
+      (Num result, mem'')
+    | SUB (left, right) ->
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
+      let result = value_int l - value_int r in
+      (Num result, mem'')
+    | CALLV (id, programs) ->
+      let (args, body, env') = lookup_env_proc env id in
+      let (mem', env'') = bind_args mem env env' args programs in
+      eval mem' (Env.bind env'' id (Proc(args, body, env''))) body
+    | CALLR (id, refs) ->
+      let (args, body, env') = lookup_env_proc env id in
+      let (mem', env'') = bind_refs mem env env' args refs in
+      eval mem' (Env.bind env'' id (Proc(args, body, env''))) body
+    | IF (cond, t, f) -> 
+      let (c, mem') = eval mem env cond in
+      (match c with
+      | Bool(true) -> eval mem' env t
+      | Bool(false) -> eval mem' env f
+      | _ -> failwith "invalid if")
+    | NOT e ->
+      let (b, mem') = eval mem env e in
+      let r = (match b with
+        | Bool(b) -> Bool(not b)
+        | _ -> failwith "invalid if")
+      in
+        (r, mem')
+    | EQUAL (left, right) ->
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
+      (match (l, r) with
+      | (Num(ln), Num(rn)) -> (Bool(ln = rn), mem'')
+      | (Bool(lb), Bool(rb)) -> (Bool(lb = rb), mem'')
+      | _ -> failwith "less: arguments are not same type")     
+    | LESS (left, right) -> 
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
+      (match (l, r) with
+      | (Num(ln), Num(rn)) -> (Bool(ln < rn), mem'')
+      | _ -> failwith "less: result is not Num")     
     | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
+
+  and bind_args mem env fenv args programs = (match (args, programs) with
+    | ([], []) -> (mem, fenv)
+    | (id::ids, p::ps) ->
+      let (v, mem') = eval mem env p in
+      let (l, mem'') = Mem.alloc mem' in
+      bind_args (Mem.store mem'' l v) env (Env.bind fenv id (Addr l)) ids ps
+    | _ -> failwith "not match args length"
+  )
+
+  and bind_refs mem env fenv args refs = (match (args, refs) with
+  | ([], []) -> (mem, fenv)
+  | (id::ids, r::rs) ->
+    let loc = lookup_env_loc env r in
+    bind_refs mem env (Env.bind fenv id (Addr loc)) ids rs
+  | _ -> failwith "not match refs length"
+  )
 
   let run (mem, env, pgm) = 
     let (v, _ ) = eval mem env pgm in
