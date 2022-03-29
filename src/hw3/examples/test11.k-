@@ -1,0 +1,6 @@
+let x := {i := 10, b := true} in
+if x.b then 
+  x.i := 11;
+  write x.i
+else
+  write 0
