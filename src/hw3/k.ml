@@ -227,6 +227,35 @@ struct
     | NUM n -> (Num n, mem)
     | TRUE -> (Bool true, mem)
     | FALSE -> (Bool false, mem)
+    | UNIT -> (Unit, mem)
+    | RECORD fields ->
+      let rec bind_fields mem vars result = (match vars with
+      | (id, p)::tail -> 
+        let (v, mem') = eval mem env p in
+        let (l, mem'') = Mem.alloc mem' in
+        let mem''' = Mem.store mem'' l v in
+        bind_fields mem''' tail ((id, l)::result)
+      | [] -> (mem, result)
+      )
+      in
+      let (mem, record) = bind_fields mem fields [] in
+      let rec find r id = (match r with
+      | (field, l)::t -> if id = field then l else find t id
+      | [] -> failwith ("cannout find field: "^id)
+      )
+      in
+      (Record (find record), mem)
+    | FIELD (exp, id) ->
+      let (record, mem') = eval mem env exp in
+      let loc = value_record record id in
+      let field = Mem.load mem' loc in
+      (field, mem')
+    | ASSIGNF (r, id, e) ->
+      let (record, mem') = eval mem env r in
+      let loc = value_record record id in
+      let (new_val, mem'') = eval mem' env e in
+      let mem''' = Mem.store mem'' loc new_val in
+      (new_val, mem''')
     | VAR id ->
       let loc = lookup_env_loc env id in
       let v = Mem.load mem loc in
@@ -244,6 +273,11 @@ struct
       let (l, mem') = eval mem env left in
       let (r, mem'') = eval mem' env right in
       let result = value_int l * value_int r in
+      (Num result, mem'')
+    | DIV (left, right) ->
+      let (l, mem') = eval mem env left in
+      let (r, mem'') = eval mem' env right in
+      let result = value_int l / value_int r in
       (Num result, mem'')
     | SUB (left, right) ->
       let (l, mem') = eval mem env left in
@@ -284,7 +318,13 @@ struct
       (match (l, r) with
       | (Num(ln), Num(rn)) -> (Bool(ln < rn), mem'')
       | _ -> failwith "less: result is not Num")     
-    | _ -> failwith "Unimplemented" (* TODO : Implement rest of the cases *)
+    | WHILE (cond, body) -> 
+      let (c, mem') = eval mem env cond in
+      if (value_bool c) then (
+        let (_, mem'') = eval mem' env body in
+        eval mem'' env (WHILE(cond, body))
+      ) else
+        (c, mem')
 
   and bind_args mem env fenv args programs = (match (args, programs) with
     | ([], []) -> (mem, fenv)
