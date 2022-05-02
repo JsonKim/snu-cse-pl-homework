@@ -214,7 +214,21 @@ struct
       base1 = base2 && z1 = z2
     | _ , _ -> false
 
-  let rec step = function
+  let dump = function
+  | s, m, e, c, k ->
+    let _ = print_endline "***** Command *****" in
+    let _ = print_endline (command_to_str c) in
+    let _ = print_endline "***** Stack *****" in
+    let _ = print_endline (stack_to_str s) in
+    let _ = print_endline "***** Environment *****" in
+    let _ = print_endline (env_to_str e) in
+    let _ = print_endline "***** Memory *****" in
+    let _ = print_endline (mem_to_str m) in
+    ()
+
+  let rec step stack = 
+    (* dump stack; *)
+    match stack with
     | (s, m, e, PUSH (Val v) :: c, k) -> (V v :: s, m, e, c, k)
     | (s, m, e, PUSH (Id x) :: c, k) ->
       (match lookup_env x e with
@@ -274,7 +288,7 @@ struct
       (V (B (z1 < z2)) :: s, m, e, c, k)
     | (V (B b) :: s, m, e, NOT :: c, k) -> (V (B (not b)) :: s, m, e, c, k)
     | s, m, e, c, k ->
-      (* For debugging, uncomment the following lines.
+      (* For debugging, uncomment the following lines.  *)
       let _ = print_endline "***** Command *****" in
       let _ = print_endline (command_to_str c) in
       let _ = print_endline "***** Stack *****" in
@@ -283,7 +297,6 @@ struct
       let _ = print_endline (env_to_str e) in
       let _ = print_endline "***** Memory *****" in
       let _ = print_endline (mem_to_str m) in
-      *)
       raise (Error "Invalid machine state")
 
   let rec run_helper (s, m, e, c, k) =
